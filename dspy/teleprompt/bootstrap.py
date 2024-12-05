@@ -10,6 +10,8 @@ import dspy
 from .teleprompt import Teleprompter
 from .vanilla import LabeledFewShot
 
+from datetime import datetime
+
 # TODO: metrics should return an object with __bool__ basically, but fine if they're more complex.
 # They can also be sortable.
 
@@ -77,9 +79,14 @@ class BootstrapFewShot(Teleprompter):
         self.error_count = 0
         self.error_lock = threading.Lock()
 
-    def compile(self, student, *, teacher=None, trainset):
-        self.trainset = trainset
+        self.current_version = 0
 
+    def compile(self, student, *, teacher=None, trainset):
+        start_time = datetime.now()
+        self.snapshot(self.student, self.current_version, start_time)
+
+        self.trainset = trainset
+        
         self._prepare_student_and_teacher(student, teacher)
         self._prepare_predictor_mappings()
         self._bootstrap()
@@ -90,6 +97,10 @@ class BootstrapFewShot(Teleprompter):
         # set assert_failures and suggest_failures as attributes of student w/ value 0
         self.student._assert_failures = 0
         self.student._suggest_failures = 0
+    
+        complete_time = datetime.now()
+        self.current_version += 1
+        self.snapshot(self.student, self.current_version, complete_time)
 
         return self.student
 
